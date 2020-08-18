@@ -2,15 +2,14 @@
 #coding:utf-8
 import pymysql,json
 def readGitComment():
-    db_host = '52.82.95.113'
-    # db_host = '10.0.0.16'
-    db_user = "root"
-    db_pass = "lnnfenwdf^T&^(2489..1"
+    db_host = '10.0.0.1'
+    db_user = "username"
+    db_pass = "passwd"
     database = 'service_info'
 
     db = pymysql.connect(db_host,db_user,db_pass,database)
     cursor = db.cursor()
-    sql = "INSERT INTO `mis-website-service-dev-fargate` (buildNumber,gitHash,gitComment) VALUES (997,'8d25s4dae641','我亦留此地-本条为模拟数据，仅用于测试');"
+    sql = "INSERT INTO `serviceName` (buildNumber,gitHash,gitComment) VALUES (997,'8d25s4dae641','ISEEU-本条为模拟数据，仅用于测试');"
     try:
         # 执行sql语句
         cursor.execute(sql)
