@@ -6,32 +6,32 @@ def clusterName
 // provides corresponding values of the environment
 if  (env.BRANCH_NAME == "develop") {
   imageTag          = "DEV"
-  serviceName       = "mis-website-service-dev-fargate"
-  taskFamily        = "mis-website-task-dev-fargate"
-  clusterName       = "zhiwen-cluster-dev"
+  serviceName       = "service-dev-fargate"
+  taskFamily        = "task-dev-fargate"
+  clusterName       = "cluster-dev"
 } else if  (env.BRANCH_NAME =~ /^release\/.*/) {
   imageTag          = "STAGING"
-  serviceName       = "mis-website-service-staging-fargate"
-  taskFamily        = "mis-website-task-staging-fargate"
-  clusterName       = "zhiwen-cluster-dev"
+  serviceName       = "service-staging-fargate"
+  taskFamily        = "task-staging-fargate"
+  clusterName       = "cluster-dev"
 } else if  (env.BRANCH_NAME == "master") {
   imageTag          = "PROD"
-  serviceName       = "mis-website-service-fargate"
-  taskFamily        = "mis-website-task-fargate"
-  clusterName       = "zhiwen-cluster"
+  serviceName       = "service-fargate"
+  taskFamily        = "task-fargate"
+  clusterName       = "cluster"
 }
 
 def remoteImageTag  = "${imageTag}-${env.BUILD_NUMBER}"
 def taskDefile      = "file://aws/task-definition-${remoteImageTag}.json"
-def ecRegistry      = "https://412934042350.dkr.ecr.cn-northwest-1.amazonaws.com.cn"
-def ecrRepo         = "412934042350.dkr.ecr.cn-northwest-1.amazonaws.com.cn/salmon"
+def ecRegistry      = "https://***.dkr.ecr.cn-northwest-1.amazonaws.com.cn"
+def ecrRepo         = "***.dkr.ecr.cn-northwest-1.amazonaws.com.cn/salmon"
 
 // 调用lambda使用的相关变量
 def lambda_name="updateGitComment"
 // 获取changelog的方法
 @NonCPS
 def getChangeString() {
-    MAX_MSG_LEN = 100
+    MAX_MSG_LEN = 1000
     def changeString = ""
     echo "Gathering SCM changes"
     def changeLogSets = currentBuild.changeSets
@@ -71,6 +71,7 @@ pipeline {
   }
   environment {
     CI = 'true'
+    gitHash = sh (returnStdout: true, script: 'git rev-parse --short HEAD').trim()
   }
   stages {
     stage('Build-dev') {
