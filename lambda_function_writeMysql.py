@@ -2,10 +2,9 @@ import json
 import pymysql
 
 def lambda_handler(event, lambda_context):
-    # db_host = '52.82.95.113'
-    db_host = '10.0.0.16'
-    db_user = "root"
-    db_pass = "lnnfenwdf^T&^(2489..1"
+    db_host = '10.0.0.1'
+    db_user = "user"
+    db_pass = "passwd"
     database = 'service_info'
 
     tb_name = event["tb_name"]
