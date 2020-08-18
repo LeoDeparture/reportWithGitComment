@@ -1,0 +1,171 @@
+def imageTag
+def taskFamily
+def serviceName
+def clusterName
+
+// provides corresponding values of the environment
+if  (env.BRANCH_NAME == "develop") {
+  imageTag          = "DEV"
+  serviceName       = "mis-website-service-dev-fargate"
+  taskFamily        = "mis-website-task-dev-fargate"
+  clusterName       = "zhiwen-cluster-dev"
+} else if  (env.BRANCH_NAME =~ /^release\/.*/) {
+  imageTag          = "STAGING"
+  serviceName       = "mis-website-service-staging-fargate"
+  taskFamily        = "mis-website-task-staging-fargate"
+  clusterName       = "zhiwen-cluster-dev"
+} else if  (env.BRANCH_NAME == "master") {
+  imageTag          = "PROD"
+  serviceName       = "mis-website-service-fargate"
+  taskFamily        = "mis-website-task-fargate"
+  clusterName       = "zhiwen-cluster"
+}
+
+def remoteImageTag  = "${imageTag}-${env.BUILD_NUMBER}"
+def taskDefile      = "file://aws/task-definition-${remoteImageTag}.json"
+def ecRegistry      = "https://412934042350.dkr.ecr.cn-northwest-1.amazonaws.com.cn"
+def ecrRepo         = "412934042350.dkr.ecr.cn-northwest-1.amazonaws.com.cn/salmon"
+
+// 调用lambda使用的相关变量
+def lambda_name="updateGitComment"
+// 获取changelog的方法
+@NonCPS
+def getChangeString() {
+    MAX_MSG_LEN = 100
+    def changeString = ""
+    echo "Gathering SCM changes"
+    def changeLogSets = currentBuild.changeSets
+    for (int i = 0; i < changeLogSets.size(); i++) {
+        def entries = changeLogSets[i].items
+        for (int j = 0; j < entries.length; j++) {
+            def entry = entries[j]
+            truncated_msg = entry.msg.take(MAX_MSG_LEN)
+            changeString += " - ${truncated_msg} [${entry.author}]"
+        }
+    }
+    if (!changeString) {
+        changeString = " - No new changes"
+    }
+    return changeString
+}
+
+def isBuildPlanned(branch){
+    return branch =~ "^master|^develop|^release/.*|^PR-*"
+}
+
+def isBuildPlannedDev(branch){
+    return branch =~ "^develop|^release/.*|^PR-*"
+}
+def isBuildPlannedMaster(branch){
+    return branch =~ "^master"
+}
+
+def isReleasePlanned(branch){
+    return branch =~ "^master|^develop|^release/.*"
+}
+
+pipeline {
+  agent { label 'ecs-agent-heavy-builder' }
+  options {
+    timestamps()
+  }
+  environment {
+    CI = 'true'
+  }
+  stages {
+    stage('Build-dev') {
+      when {
+        expression{ isBuildPlannedDev(env.BRANCH_NAME) }
+      }
+      steps {
+        script {
+          docker.withRegistry(ecRegistry, 'ecr:cn-northwest-1:aws-cred-ecs') {
+            docker.build("${ecrRepo}:${remoteImageTag}", "--no-cache -f ./Dockerfile-dev .")
+          }
+        }
+      }
+    }
+    stage('Build-master') {
+      when {
+        expression{ isBuildPlannedMaster(env.BRANCH_NAME) }
+      }
+      steps {
+        script {
+          docker.withRegistry(ecRegistry, 'ecr:cn-northwest-1:aws-cred-ecs') {
+            docker.build("${ecrRepo}:${remoteImageTag}", "--no-cache -f ./Dockerfile-master .")
+          }
+        }
+      }
+    }
+    stage("Publish") {
+      when {
+        expression{ isReleasePlanned(env.BRANCH_NAME) }
+      }
+      steps {
+        script {
+          docker.withRegistry(ecRegistry, 'ecr:cn-northwest-1:aws-cred-ecs') {
+            docker.image("${ecrRepo}:${remoteImageTag}").push(remoteImageTag)
+          }
+        }
+      }
+    }
+    stage("Deploy") {
+      when {
+        expression{ isReleasePlanned(env.BRANCH_NAME) }
+      }
+      steps {
+        script {
+          // Replace BUILD_TAG placeholder in the task-definition file
+          sh  "                                                                     \
+            sed -e  's;%BUILD_TAG%;${remoteImageTag};g'                             \
+                    aws/task-definition-${imageTag}.json >                          \
+                    aws/task-definition-${remoteImageTag}.json                      \
+          "
+
+          // Register the new [TaskDefinition]
+          sh  "                                                                     \
+            aws ecs register-task-definition  --family ${taskFamily}                \
+                                              --cli-input-json ${taskDefile}        \
+          "
+
+          // Get the last registered [TaskDefinition#revision]
+          def taskRevision = sh (
+            returnStdout: true,
+            script:  "                                                                      \
+              aws ecs describe-task-definition  --task-definition ${taskFamily}             \
+                                                | egrep 'revision'                          \
+                                                | tr ',' ' '                                \
+                                                | awk '{print \$2}'                         \
+            "
+          ).trim()
+
+          // ECS update service to use the newly registered [TaskDefinition#revision]
+          sh  "                                                                             \
+          aws ecs update-service  --cluster ${clusterName}                                  \
+                                    --service ${serviceName}                                \
+                                    --task-definition ${taskFamily}:${taskRevision}         \
+                                    --desired-count 1                                       \
+          "
+          // JSON定义&&传参，远程触发lambda写库
+          def changeString = getChangeString()
+          def event = """{"tb_name": "$serviceName","buildNumber": ${env.BUILD_NUMBER},"gitHash": "${env.CHANGE_ID}","gitComment": "$changeString"}"""
+          echo "以下是本次构建的changelog"
+          echo "$changeString"
+          sh " aws lambda invoke \
+                    --function-name ${lambda_name} \
+                    --invocation-type Event \
+                    --payload '$event' \
+                    response.json "
+        }
+      }
+    }
+    stage('Cleanup') {
+      when {
+        expression{ isBuildPlanned(env.BRANCH_NAME) }
+      }
+      steps {
+        sh "docker rmi ${ecrRepo}:${remoteImageTag}"
+      }
+    }
+  }
+}
