@@ -1,10 +1,10 @@
 #!/bin/zsh
 lambda_name="updateGitComment"
 
-serviceName='mis-website-service-dev-fargate'
+serviceName='service-dev-fargate'
 buildNumber=1004
-gitHash='dateornot'
-gitComment='周末能不能约会去？'
+gitHash='dat34eor82t'
+gitComment='测试用的备注信息001'
 
 event='{"tb_name":'\"$serviceName\"',"buildNumber":'\"$buildNumber\"',"gitHash":'\"$gitHash\"',"gitComment":'\"$gitComment\"'}'
 
