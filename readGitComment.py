@@ -2,9 +2,9 @@
 #coding:utf-8
 import pymysql
 def readGitComment(serveiceName):
-    db_host = '52.82.95.113'
-    db_user = "root"
-    db_pass = "lnnfenwdf^T&^(2489..1"
+    db_host = '10.0.0.1'
+    db_user = "username"
+    db_pass = "passwd"
     database = 'service_info'
 
     db = pymysql.connect(db_host,db_user,db_pass,database)
