@@ -14,7 +14,7 @@ def lambda_handler(event, lambda_context):
 
     db = pymysql.connect(db_host, db_user, db_pass, database)
     cursor = db.cursor()
-    sql = "INSERT INTO `%s` (buildNumber,gitHash,gitComment) VALUES (%i,'%s','%s');" % (tb_name, buildNumber, gitHash, gitComment)
+    sql = "INSERT INTO `%s` (buildNumber,gitHash,gitComment,buildUrl) VALUES (%i,'%s','%s','%s');" % (tb_name, buildNumber, gitHash, gitComment, buildUrl)
     print(sql)
     try:
         # 执行sql语句
