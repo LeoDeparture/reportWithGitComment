@@ -23,7 +23,7 @@ def readGitComment(serveiceName):
 
     db = pymysql.connect(db_host,db_user,db_pass,database)
     cursor = db.cursor()
-    sql = "select buildNumber,gitHash,gitComment from `%s` ORDER BY buildNumber DESC ;" % serveiceName
+    sql = "select buildNumber,gitHash,gitComment,buildUrl,commitUrl from `%s` ORDER BY buildNumber DESC ;" % serveiceName
     try:
         # 执行sql语句
         cursor.execute(sql)
@@ -79,9 +79,9 @@ def lambda_handler(event, context):
         if serveiceName in dict.keys():
             a = '#### 部署环境: %s\n\n' % dict[serveiceName]['ENV']
             b = '#### 业务描述: %s\n\n' % dict[serveiceName]['description']
-            c = '> 以下为业务相关信息\n\n##### 构建编号: %s\n\n' % readGitComment(serveiceName)[0]
-            d = '##### CommitID: %s\n\n' % readGitComment(serveiceName)[1]
-            e = '### 更新摘要:%s\n\n' % readGitComment(serveiceName)[2].replace('-','\n - ',)
+            c = '> 以下为业务相关信息\n\n[构建编号: %s](%s)\n\n' % (readGitComment(serveiceName)[0],readGitComment(serveiceName)[3])
+            d = '[CommitID: %s](%s%s)\n\n' % (readGitComment(serveiceName)[1],readGitComment(serveiceName)[4],readGitComment(serveiceName)[1])
+            e = '### 更新摘要:%s\n\n' % readGitComment(serveiceName)[2].replace('+*+','\n - ',)
             content = content + a + b + c + d + e
         print('查询当前event到上一个事件的间隔： %s' % interval + '\n' + content)
         dingMessage(content)
