@@ -149,7 +149,7 @@ pipeline {
           "
           // JSON定义&&传参，远程触发lambda写库
           def changeString = getChangeString()
-          def event = """{"tb_name": "$serviceName","buildNumber": ${env.BUILD_NUMBER},"gitHash": "${env.CHANGE_ID}","gitComment": "$changeString"}"""
+          def event = """{"tb_name": "$serviceName","buildNumber": ${env.BUILD_NUMBER},"buildUrl": "${env.BUILD_URL}console","gitHash": "$gitHash","gitComment": "$changeString"}"""
           echo "以下是本次构建的changelog"
           echo "$changeString"
           sh " aws lambda invoke \
